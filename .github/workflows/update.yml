@@ -1,0 +1,77 @@
+name: Update package versions
+
+on:
+  repository_dispatch:
+    types: [update-sql-pipe]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (without v prefix, e.g. 0.3.0)"
+        required: true
+
+jobs:
+  update:
+    name: Update sql-pipe versions.json
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: vars
+        run: |
+          VERSION="${{ github.event.client_payload.version || github.event.inputs.version }}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Download sha256sums.txt
+        run: |
+          curl -fsSL \
+            "https://github.com/vmvarela/sql-pipe/releases/download/v${{ steps.vars.outputs.version }}/sha256sums.txt" \
+            -o sha256sums.txt
+
+      - name: Update versions.json
+        run: |
+          VERSION="${{ steps.vars.outputs.version }}"
+          SHA_X64_LINUX=$(awk '$2 == "sql-pipe-x86_64-linux"  { print $1 }' sha256sums.txt)
+          SHA_A64_LINUX=$(awk '$2 == "sql-pipe-aarch64-linux" { print $1 }' sha256sums.txt)
+          SHA_X64_MACOS=$(awk '$2 == "sql-pipe-x86_64-macos"  { print $1 }' sha256sums.txt)
+          SHA_A64_MACOS=$(awk '$2 == "sql-pipe-aarch64-macos" { print $1 }' sha256sums.txt)
+
+          cat > pkgs/sql-pipe/versions.json <<JSON
+          {
+            "x86_64-linux": {
+              "url": "https://github.com/vmvarela/sql-pipe/releases/download/v${VERSION}/sql-pipe-x86_64-linux",
+              "sha256": "${SHA_X64_LINUX}",
+              "version": "${VERSION}"
+            },
+            "aarch64-linux": {
+              "url": "https://github.com/vmvarela/sql-pipe/releases/download/v${VERSION}/sql-pipe-aarch64-linux",
+              "sha256": "${SHA_A64_LINUX}",
+              "version": "${VERSION}"
+            },
+            "x86_64-darwin": {
+              "url": "https://github.com/vmvarela/sql-pipe/releases/download/v${VERSION}/sql-pipe-x86_64-macos",
+              "sha256": "${SHA_X64_MACOS}",
+              "version": "${VERSION}"
+            },
+            "aarch64-darwin": {
+              "url": "https://github.com/vmvarela/sql-pipe/releases/download/v${VERSION}/sql-pipe-aarch64-macos",
+              "sha256": "${SHA_A64_MACOS}",
+              "version": "${VERSION}"
+            }
+          }
+          JSON
+
+          echo "==> Updated pkgs/sql-pipe/versions.json to ${VERSION}"
+          cat pkgs/sql-pipe/versions.json
+
+      - name: Commit and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pkgs/sql-pipe/versions.json
+          git diff --cached --quiet && echo "No changes." && exit 0
+          git commit -m "chore(sql-pipe): update to v${{ steps.vars.outputs.version }}"
+          git push
