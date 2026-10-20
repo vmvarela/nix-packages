@@ -1,22 +1,22 @@
 {
   "x86_64-linux": {
-    "url": "https://github.com/vmvarela/damas/releases/download/v0.1.9/damas-x86_64-linux",
-    "sha256": "0b564c4857c0ae8c4df7942695b761617426fae0d64cbf38a0f576b289141eaf",
-    "version": "0.1.9"
+    "url": "https://github.com/vmvarela/damas/releases/download/v0.1.10/damas-x86_64-linux",
+    "sha256": "ec3b3e2853e5f3f561c6b803c38f4c153db46ee8877daad2f36a91841656fd9a",
+    "version": "0.1.10"
   },
   "aarch64-linux": {
-    "url": "https://github.com/vmvarela/damas/releases/download/v0.1.9/damas-aarch64-linux",
-    "sha256": "3c4c42842822308a85dec89776e37c18dbebb9ee82d20af07fa24ebea60d234a",
-    "version": "0.1.9"
+    "url": "https://github.com/vmvarela/damas/releases/download/v0.1.10/damas-aarch64-linux",
+    "sha256": "7a9295b693862b39cdd8285fe34f5ff643dd61f80d797665c5622db1216b0d20",
+    "version": "0.1.10"
   },
   "x86_64-darwin": {
-    "url": "https://github.com/vmvarela/damas/releases/download/v0.1.9/damas-x86_64-macos",
-    "sha256": "718f5b4dc2883d54670794d038d93504b28fd049eb9031d762d4059bd805dcd2",
-    "version": "0.1.9"
+    "url": "https://github.com/vmvarela/damas/releases/download/v0.1.10/damas-x86_64-macos",
+    "sha256": "280639e568bb2a5ab8eb52f2b18012c278894bfe3ccbd3aabc7fbd908628c825",
+    "version": "0.1.10"
   },
   "aarch64-darwin": {
-    "url": "https://github.com/vmvarela/damas/releases/download/v0.1.9/damas-aarch64-macos",
-    "sha256": "0cf376ec01fef81918cf36cf17bf3d3aa777d8d0d060670fcc48efb20ce5af1e",
-    "version": "0.1.9"
+    "url": "https://github.com/vmvarela/damas/releases/download/v0.1.10/damas-aarch64-macos",
+    "sha256": "c5b79c0d7b99f90147b0acb210535eb73dfc2b98c800046ec9465a7e48484767",
+    "version": "0.1.10"
   }
 }
