@@ -1,6 +1,9 @@
 name: Update package versions
 
 on:
+  # Recovery sync: a missed dispatch converges on the next scheduled run.
+  schedule:
+    - cron: "47 5 * * *"
   repository_dispatch:
     types: [update-sql-pipe, update-damas]
   workflow_dispatch:
@@ -94,38 +97,69 @@ jobs:
         shell: bash
         env:
           TARGET: ${{ steps.vars.outputs.target }}
-          CATALOG: ${{ steps.vars.outputs.catalog }}
           VERSION: ${{ steps.vars.outputs.version }}
           FORCE: ${{ github.event.inputs.force }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           extra=""
           if [ "${FORCE:-false}" = "true" ]; then extra="--force"; fi
-          node publisher/scripts/nix-publish.mjs \
-            --catalog "$CATALOG" \
-            --version "$VERSION" \
-            --source github \
-            --out tree \
-            --state state $extra
-          if [ -f tree/.complete ]; then
-            cat tree/.complete
-            mkdir -p "pkgs/${TARGET}"
-            cp "tree/pkgs/${TARGET}/versions.json" "pkgs/${TARGET}/versions.json"
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+
+          if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
+            targets="$(for f in publisher/catalog/*.json; do
+              if jq -e '.channels.nix' "$f" >/dev/null 2>&1; then basename "$f" .json; fi
+            done)"
           else
-            echo "No change for ${TARGET} ${VERSION}."
-            echo "changed=false" >> "$GITHUB_OUTPUT"
+            targets="${TARGET}"
           fi
+
+          changed="false"
+          state="state"
+          for target in ${targets}; do
+            if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
+              repo="$(jq -r '.repo' "publisher/catalog/${target}.json")"
+              version="$(gh api "repos/${repo}/releases/latest" --jq .tag_name)"
+              version="${version#v}"
+              if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "::error::Not a stable release version for ${target}: ${version}"
+                exit 1
+              fi
+            else
+              version="${VERSION}"
+            fi
+
+            # One output per package: the publisher refuses a non-empty --out, and the chained
+            # state is what carries the packages already processed.
+            out="tree-${target}"
+            node publisher/scripts/nix-publish.mjs \
+              --catalog "publisher/catalog/${target}.json" \
+              --version "${version}" \
+              --source github \
+              --out "${out}" \
+              --state "${state}" ${extra}
+
+            if [ -f "${out}/.complete" ]; then
+              cat "${out}/.complete"
+              mkdir -p "pkgs/${target}"
+              cp "${out}/pkgs/${target}/versions.json" "pkgs/${target}/versions.json"
+              changed="true"
+              state="${out}.state"
+            else
+              echo "No change for ${target} ${version}."
+            fi
+          done
+
+          echo "changed=${changed}" >> "$GITHUB_OUTPUT"
+          echo "state=${state}" >> "$GITHUB_OUTPUT"
 
       - name: Commit versions and state
         if: steps.publish.outputs.changed == 'true'
         shell: bash
         env:
-          TARGET: ${{ steps.vars.outputs.target }}
-          VERSION: ${{ steps.vars.outputs.version }}
+          STATE: ${{ steps.publish.outputs.state }}
         run: |
           set -euo pipefail
-          rsync -a --delete tree.state/ state/
+          rsync -a --delete "${STATE}/" state/
           git add pkgs state
           if git diff --cached --quiet; then
             echo "Already current."
@@ -133,5 +167,5 @@ jobs:
           fi
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -m "chore(${TARGET}): update to v${VERSION}"
+              commit -m "chore: reconcile versions.json with the releases"
           git push
