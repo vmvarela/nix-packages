@@ -2,76 +2,136 @@ name: Update package versions
 
 on:
   repository_dispatch:
-    types: [update-sql-pipe]
+    types: [update-sql-pipe, update-damas]
   workflow_dispatch:
     inputs:
-      version:
-        description: "Release version (without v prefix, e.g. 0.3.0)"
+      package:
+        description: "Package whose release triggered the update"
         required: true
+        default: sql-pipe
+        type: choice
+        options:
+          - sql-pipe
+          - damas
+      version:
+        description: "Release version without v; leave empty to use latest stable"
+        required: false
+      force:
+        description: "Rewrite versions.json even when the state already matches"
+        required: false
+        default: false
+        type: boolean
+
+# Publisher contract (docs/receivers.md in vmvarela/package-distribution).
+env:
+  PACKAGE_DISTRIBUTION_SHA: 90180b82a14448e1aad7867a6fa414b5bac9fb36
+
+concurrency:
+  group: versions
+  cancel-in-progress: false
 
 jobs:
   update:
-    name: Update sql-pipe versions.json
+    name: Update versions.json
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v6
 
-      - name: Resolve version
+      - name: Check out package-distribution
+        uses: actions/checkout@v6
+        with:
+          repository: vmvarela/package-distribution
+          ref: ${{ env.PACKAGE_DISTRIBUTION_SHA }}
+          path: publisher
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Resolve target and version
         id: vars
+        shell: bash
+        env:
+          EVENT_ACTION: ${{ github.event.action }}
+          INPUT_PACKAGE: ${{ github.event.inputs.package }}
+          REQUESTED_VERSION: ${{ github.event.client_payload.version || github.event.inputs.version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="${{ github.event.client_payload.version || github.event.inputs.version }}"
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          set -euo pipefail
 
-      - name: Download sha256sums.txt
-        run: |
-          curl -fsSL \
-            "https://github.com/vmvarela/sql-pipe/releases/download/v${{ steps.vars.outputs.version }}/sha256sums.txt" \
-            -o sha256sums.txt
+          case "${EVENT_ACTION:-${INPUT_PACKAGE:-}}" in
+            update-sql-pipe|sql-pipe) target="sql-pipe" ;;
+            update-damas|damas) target="damas" ;;
+            *) echo "::error::Unknown package update event."; exit 1 ;;
+          esac
 
-      - name: Update versions.json
-        run: |
-          VERSION="${{ steps.vars.outputs.version }}"
-          SHA_X64_LINUX=$(awk '$2 == "sql-pipe-x86_64-linux"  { print $1 }' sha256sums.txt)
-          SHA_A64_LINUX=$(awk '$2 == "sql-pipe-aarch64-linux" { print $1 }' sha256sums.txt)
-          SHA_X64_MACOS=$(awk '$2 == "sql-pipe-x86_64-macos"  { print $1 }' sha256sums.txt)
-          SHA_A64_MACOS=$(awk '$2 == "sql-pipe-aarch64-macos" { print $1 }' sha256sums.txt)
+          catalog="publisher/catalog/${target}.json"
+          repo="$(jq -r '.repo' "$catalog")"
+          version="${REQUESTED_VERSION:-}"
+          version="${version#v}"
+          if [[ -z "$version" ]]; then
+            version="$(gh api "repos/${repo}/releases/latest" --jq .tag_name)"
+            version="${version#v}"
+          fi
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Not a stable release version for ${target}: ${version}"
+            exit 1
+          fi
 
-          cat > pkgs/sql-pipe/versions.json <<JSON
           {
-            "x86_64-linux": {
-              "url": "https://github.com/vmvarela/sql-pipe/releases/download/v${VERSION}/sql-pipe-x86_64-linux",
-              "sha256": "${SHA_X64_LINUX}",
-              "version": "${VERSION}"
-            },
-            "aarch64-linux": {
-              "url": "https://github.com/vmvarela/sql-pipe/releases/download/v${VERSION}/sql-pipe-aarch64-linux",
-              "sha256": "${SHA_A64_LINUX}",
-              "version": "${VERSION}"
-            },
-            "x86_64-darwin": {
-              "url": "https://github.com/vmvarela/sql-pipe/releases/download/v${VERSION}/sql-pipe-x86_64-macos",
-              "sha256": "${SHA_X64_MACOS}",
-              "version": "${VERSION}"
-            },
-            "aarch64-darwin": {
-              "url": "https://github.com/vmvarela/sql-pipe/releases/download/v${VERSION}/sql-pipe-aarch64-macos",
-              "sha256": "${SHA_A64_MACOS}",
-              "version": "${VERSION}"
-            }
-          }
-          JSON
+            echo "target=${target}"
+            echo "catalog=${catalog}"
+            echo "version=${version}"
+          } >> "$GITHUB_OUTPUT"
 
-          echo "==> Updated pkgs/sql-pipe/versions.json to ${VERSION}"
-          cat pkgs/sql-pipe/versions.json
-
-      - name: Commit and push
+      - name: Write versions.json
+        id: publish
+        shell: bash
+        env:
+          TARGET: ${{ steps.vars.outputs.target }}
+          CATALOG: ${{ steps.vars.outputs.catalog }}
+          VERSION: ${{ steps.vars.outputs.version }}
+          FORCE: ${{ github.event.inputs.force }}
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add pkgs/sql-pipe/versions.json
-          git diff --cached --quiet && echo "No changes." && exit 0
-          git commit -m "chore(sql-pipe): update to v${{ steps.vars.outputs.version }}"
+          set -euo pipefail
+          extra=""
+          if [ "${FORCE:-false}" = "true" ]; then extra="--force"; fi
+          node publisher/scripts/nix-publish.mjs \
+            --catalog "$CATALOG" \
+            --version "$VERSION" \
+            --source github \
+            --out tree \
+            --state state $extra
+          if [ -f tree/.complete ]; then
+            cat tree/.complete
+            mkdir -p "pkgs/${TARGET}"
+            cp "tree/pkgs/${TARGET}/versions.json" "pkgs/${TARGET}/versions.json"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No change for ${TARGET} ${VERSION}."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit versions and state
+        if: steps.publish.outputs.changed == 'true'
+        shell: bash
+        env:
+          TARGET: ${{ steps.vars.outputs.target }}
+          VERSION: ${{ steps.vars.outputs.version }}
+        run: |
+          set -euo pipefail
+          rsync -a --delete tree.state/ state/
+          git add pkgs state
+          if git diff --cached --quiet; then
+            echo "Already current."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "chore(${TARGET}): update to v${VERSION}"
           git push
