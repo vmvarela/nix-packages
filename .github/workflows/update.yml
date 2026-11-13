@@ -58,6 +58,8 @@ jobs:
 
       - name: Resolve target and version
         id: vars
+        # A scheduled run has no package event; the publish step walks the catalog instead.
+        if: github.event_name != 'schedule'
         shell: bash
         env:
           EVENT_ACTION: ${{ github.event.action }}
