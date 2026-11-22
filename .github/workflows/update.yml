@@ -5,7 +5,7 @@ on:
   schedule:
     - cron: "47 5 * * *"
   repository_dispatch:
-    types: [update-sql-pipe, update-damas]
+    types: [update-sql-pipe, update-damas, update-ztd]
   workflow_dispatch:
     inputs:
       package:
@@ -16,6 +16,7 @@ on:
         options:
           - sql-pipe
           - damas
+          - ztd
       version:
         description: "Release version without v; leave empty to use latest stable"
         required: false
@@ -27,7 +28,7 @@ on:
 
 # Publisher contract (docs/receivers.md in vmvarela/package-distribution).
 env:
-  PACKAGE_DISTRIBUTION_SHA: 90180b82a14448e1aad7867a6fa414b5bac9fb36
+  PACKAGE_DISTRIBUTION_SHA: beec0beb2a6d4cfb2252c9a37b1d939a959bae4d
 
 concurrency:
   group: versions
@@ -72,6 +73,7 @@ jobs:
           case "${EVENT_ACTION:-${INPUT_PACKAGE:-}}" in
             update-sql-pipe|sql-pipe) target="sql-pipe" ;;
             update-damas|damas) target="damas" ;;
+            update-ztd|ztd) target="ztd" ;;
             *) echo "::error::Unknown package update event."; exit 1 ;;
           esac
 
