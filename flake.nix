@@ -14,6 +14,9 @@
         "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+      # The shared Nix receiver writes pkgs/zepp-life/versions.json on the first
+      # update-zepp-life release; until then the flake must stay evaluable.
+      hasZeppLife = builtins.pathExists ./pkgs/zepp-life/versions.json;
     in
     {
       packages = forAllSystems (system:
@@ -23,11 +26,15 @@
         {
           sql-pipe = pkgs.callPackage ./pkgs/sql-pipe/package.nix { };
           default = self.packages.${system}.sql-pipe;
+        } // nixpkgs.lib.optionalAttrs hasZeppLife {
+          zepp-life = pkgs.callPackage ./pkgs/zepp-life/package.nix { };
         }
       );
 
       overlays.default = final: _prev: {
         sql-pipe = final.callPackage ./pkgs/sql-pipe/package.nix { };
+      } // nixpkgs.lib.optionalAttrs hasZeppLife {
+        zepp-life = final.callPackage ./pkgs/zepp-life/package.nix { };
       };
     };
 }
