@@ -1,0 +1,22 @@
+{
+  "x86_64-linux": {
+    "version": "0.1.0",
+    "sha256": "bc1b3e16543585ab3437f731c28c6a34a86adb2892f22b530d826694bbb94456",
+    "url": "https://github.com/vmvarela/zepp-life/releases/download/v0.1.0/zepp-life-linux-amd64"
+  },
+  "aarch64-linux": {
+    "version": "0.1.0",
+    "sha256": "ab9da6ccbccdc297de76b508f2b60b990298d550067aafaef25eedb6138f04d9",
+    "url": "https://github.com/vmvarela/zepp-life/releases/download/v0.1.0/zepp-life-linux-arm64"
+  },
+  "x86_64-darwin": {
+    "version": "0.1.0",
+    "sha256": "da92ec636c009879a3962496382e812bdc4df9edba89222630880a4eaebbdefc",
+    "url": "https://github.com/vmvarela/zepp-life/releases/download/v0.1.0/zepp-life-darwin-amd64"
+  },
+  "aarch64-darwin": {
+    "version": "0.1.0",
+    "sha256": "a8aa7314b22c3f8aae982e9a7a20af19ebf0bad075eabc41644522c6900d425a",
+    "url": "https://github.com/vmvarela/zepp-life/releases/download/v0.1.0/zepp-life-darwin-arm64"
+  }
+}
