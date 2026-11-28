@@ -1,27 +1,27 @@
 {
   "schema_version": 1,
   "package": "ztd",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "systems": {
     "x86_64-linux": {
-      "version": "0.4.1",
-      "sha256": "40a8ef206696110db0016c358decce0c7edede977cb3217a31224e2b446321e5",
-      "url": "https://github.com/vmvarela/ztd/releases/download/v0.4.1/ztd-x86_64-linux"
+      "version": "0.4.2",
+      "sha256": "7eeddc8a5383ebfecc5ff7cada198d5248833ac23330789ee0bd29da6f9c17df",
+      "url": "https://github.com/vmvarela/ztd/releases/download/v0.4.2/ztd-x86_64-linux"
     },
     "aarch64-linux": {
-      "version": "0.4.1",
-      "sha256": "295bf86f43b21f8eb13cde04cd909893474dde0cb90ab5d1fb98ec1a998daeee",
-      "url": "https://github.com/vmvarela/ztd/releases/download/v0.4.1/ztd-aarch64-linux"
+      "version": "0.4.2",
+      "sha256": "4d3783500090a5dba5f5626f2f29d47d41bba4b00f0fca44ad97ec871e99e283",
+      "url": "https://github.com/vmvarela/ztd/releases/download/v0.4.2/ztd-aarch64-linux"
     },
     "x86_64-darwin": {
-      "version": "0.4.1",
-      "sha256": "13fb55992b8d4c601935dd04337226815f101e10c0d11a5f66bd01e79d0acfcd",
-      "url": "https://github.com/vmvarela/ztd/releases/download/v0.4.1/ztd-x86_64-macos"
+      "version": "0.4.2",
+      "sha256": "92470b90e15e7e4841015ead06b5c238865aa46a246d31b779d371132ff62db7",
+      "url": "https://github.com/vmvarela/ztd/releases/download/v0.4.2/ztd-x86_64-macos"
     },
     "aarch64-darwin": {
-      "version": "0.4.1",
-      "sha256": "1302228fec6ac3b25f1e2c55fce5911ea4ce9400c4722c26463c6c23a729e066",
-      "url": "https://github.com/vmvarela/ztd/releases/download/v0.4.1/ztd-aarch64-macos"
+      "version": "0.4.2",
+      "sha256": "ef420de5c8627edba4f525b5ed11fb82578092dc1438a7f0565b2f7b136dc6d1",
+      "url": "https://github.com/vmvarela/ztd/releases/download/v0.4.2/ztd-aarch64-macos"
     }
   }
 }
